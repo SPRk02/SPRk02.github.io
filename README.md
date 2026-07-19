@@ -27,8 +27,8 @@ I enjoy playing farming and life simulation games, watching anime and various se
 
 ## References
 ---
-**Peeraya Thapatsuwan, Ph.D.**
-Advisor
+**Peeraya Thapatsuwan, Ph.D.** <br>
+Advisor<br>
 **Email:** peeraya.t@ku.th
 
 ---
