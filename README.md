@@ -1,7 +1,7 @@
-# My Profile & CV
+# Supharak Sutthong
 
 ## 👤 About Me
-- **Name:** [ชื่อของคุณ]
+- **Name:** Supharak Sutthong
 - **Education:** Computer Science Student at [ชื่อมหาวิทยาลัย]
 - **Skills:** JavaScript, HTML/CSS, Node.js, Computer Graphics
 - **Contact:** [อีเมลของคุณ]
