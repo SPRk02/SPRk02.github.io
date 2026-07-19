@@ -1,3 +1,6 @@
+# SUPHARAK SUTTHONG
+**CV Website & Interactive Computer Graphics**
+
 ## Personal Profile Statement
 A Computer Science student with a strong interest in web and mobile application development. Proficient in core programming languages like Java and JavaScript, and currently expanding my skills in modern frameworks like React Native.
 
