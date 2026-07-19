@@ -1,5 +1,3 @@
-# Supharak Sutthong
-
 ## Personal Profile Statement
 A Computer Science student with a strong interest in web and mobile application development. Proficient in core programming languages like Java and JavaScript, and currently expanding my skills in modern frameworks like React Native.
 
@@ -46,4 +44,4 @@ This project demonstrates **24-bit Sprite Transformation**
 *  **Sale:** Press `ArrowUp` to scale up and `ArrowDown` to scale down.
 
 ### Live Demo:
-<iframe src="700_Transformation.html" width="100%" height="550px" style="border:1px solid #ccc; border-radius: 8px;"></iframe>
+<iframe src="700_Transformation.html" width="540px" height="540px" style="border: none; display: block; margin: 0 auto;"></iframe>
