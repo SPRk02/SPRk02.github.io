@@ -9,7 +9,7 @@ A Computer Science student with a strong interest in web and mobile application 
 ---
 **June 2024 - present** <br>
 * Computer Science  Kasetsart university
-> <small>English as a second language, Adult Basic Education</small>
+    English as a second language, Adult Basic Education
 
 
 ## Certification
