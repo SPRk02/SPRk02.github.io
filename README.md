@@ -6,7 +6,7 @@ A Computer Science student with a strong interest in web and mobile application 
 
 ## Education
 ---
-**June 2024 - present**
+**June 2024 - present** <br>
 Kasetsart university - Kamphaeng Sean, Nakhon Pathom, Thailand
 >English as a second language, Adult Basic Education
 
