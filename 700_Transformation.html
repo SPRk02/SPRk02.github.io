@@ -59,125 +59,46 @@ function drawRectFilled(x1, y1, x2, y2, r, g, b, a = 255) {
   }
 }
 
-function drawRectGradient(x1, y1, x2, y2, r1, g1, b1, r2, g2, b2) {
-  for (let y = y1; y <= y2; y++) {
-    const t = (y - y1) / (y2 - y1);
-    const r = Math.round(r1 * (1 - t) + r2 * t);
-    const g = Math.round(g1 * (1 - t) + g2 * t);
-    const b = Math.round(b1 * (1 - t) + b2 * t);
-    for (let x = x1; x <= x2; x++) {
-      putPixel(x, y, r, g, b);
-    }
-  }
-}
-
-function drawEllipse(cx, cy, rx, ry, r, g, b, a = 255) {
-  for (let y = -ry; y <= ry; y++) {
-    for (let x = -rx; x <= rx; x++) {
-      if ((x * x) / (rx * rx) + (y * y) / (ry * ry) < 1) {
-        putPixel(cx + x, cy + y, r, g, b, a);
-      }
-    }
-  }
-}
-
-function drawSprite(sprite, x, y, r, g, b, a = 255) {
-  for (let j = 0; j < sprite.length; j++) {
-    for (let i = 0; i < sprite[j].length; i++) {
-      if (sprite[j][i] === 1) {
-        putPixel(x + i, y + j, r, g, b, a);
-      }
-    }
-  }
-}
-
-function drawSpriteRotateScale(sprite, x, y, degree, scaleX, scaleY, r, g, b, a = 255) {
-  for (let j = 0; j < sprite.length; j++) {
-    for (let i = 0; i < sprite[j].length; i++) {
-      if (sprite[j][i] === 1) {
-        const rad = degree * (Math.PI / 100);
-        const centerX = i - sprite[j].length / 2;
-        const centerY = j - sprite.length / 2;
-
-        //Rotate
-        const x_rot = Math.round(centerX * Math.cos(rad) - centerY * Math.sin(rad));
-        const y_rot = Math.round(centerX * Math.sin(rad) + centerY * Math.cos(rad));
-
-        //Scale
-        const x_scaled = Math.round(x_rot * scaleX);
-        const y_scaled = Math.round(y_rot * scaleY);
-
-        //Translate
-        const x_translate = x_scaled + x;
-        const y_translate = y_scaled + y;
-
-        //putPixel(x_scaled + x, y_scaled + y, r, g, b, a);
-        //drawRectFilled(x_scaled + x, y_scaled + y, x_scaled + x + 1, y_scaled + y + 1, r, g, b, a);
-        drawEllipse(x_translate, y_translate, Math.round(scaleX), Math.round(scaleY), r, g, b, a);
-      }
-    }
-  }
-}
-
-function drawSprite24Bit(sprite, x, y) {
+function drawSprite24BitRotateScale(sprite, x, y, degree, scaleX, scaleY) {
   for (let j = 0; j < sprite.length; j++) {
     for (let i = 0; i < sprite[j].length; i++) {
       const color = sprite[j][i];
 
+      // เช็คว่าพิกเซลไม่ใช่ null (ไม่โปร่งใส) จึงจะนำมาคำนวณและวาด
       if (color !== null) {
+        // ถอดรหัสสี 24-bit ออกเป็นช่องสี Red, Green, Blue
         const r = (color >> 16) & 255;
         const g = (color >> 8) & 255;
         const b = color & 255;
-        putPixel(x + i, y + j, r, g, b);
-      }
+
+        // คำนวณหาจุดหมุนโดยอ้างอิงจากจุดกึ่งกลางของตัว Sprite[cite: 1]
+        const rad = degree * (Math.PI / 100);
+        const centerX = i - sprite[j].length / 2;
+        const centerY = j - sprite.length / 2;
+
+        const x_rot = Math.round(centerX * Math.cos(rad) - centerY * Math.sin(rad));
+        const y_rot = Math.round(centerX * Math.sin(rad) + centerY * Math.cos(rad));
+
+        const x_scaled = Math.round(x_rot * scaleX);
+        const y_scaled = Math.round(y_rot * scaleY);
+
+        const x_translate = x_scaled + x;
+        const y_translate = y_scaled + y;
+
+        const width = Math.max(1, Math.ceil(Math.abs(scaleX)));
+        const height = Math.max(1, Math.ceil(Math.abs(scaleY)));
+        
+        drawRectFilled(
+          x_translate, 
+          y_translate, 
+          x_translate + width, 
+          y_translate + height, 
+          r, g, b
+        );
     }
   }
 }
-
-function toScaledMousePos(posX, posY) {
-  const rect = canvas.getBoundingClientRect();
-  const scaleX = canvas.width / rect.width;
-  const scaleY = canvas.height / rect.height;
-  return {
-    x: Math.floor((posX - rect.left) * scaleX),
-    y: Math.floor((posY - rect.top) * scaleY)
-  };
 }
-
-/*const spaceInvaderSprite = 
-   [
-    [0, 0, 1, 0, 0, 1, 0, 0],
-    [0, 0, 0, 1, 1, 0, 0, 0],
-    [0, 0, 1, 1, 1, 1, 0, 0],
-    [0, 1, 1, 1, 1, 1, 1, 0],
-    [1, 1, 0, 1, 1, 0, 1, 1],
-    [1, 1, 1, 1, 1, 1, 1, 1],
-    [1, 0, 1, 0, 0, 1, 0, 1],
-    [0, 1, 0, 1, 1, 0, 1, 0],
-   ];*/
-
-const smileSprite = 
-   [
-    [0, 0, 1, 1, 1, 1, 0, 0],
-    [0, 1, 0, 0, 0, 0, 1, 0],
-    [1, 0, 1, 0, 0, 1, 0, 1],
-    [1, 0, 0, 0, 0, 0, 0, 1],
-    [1, 0, 1, 0, 0, 1, 0, 1],
-    [1, 0, 0, 1, 1, 0, 0, 1],
-    [0, 1, 0, 0, 0, 0, 1, 0],
-    [0, 0, 1, 1, 1, 1, 0, 0],
-   ];
-
-const smileSprite24Bit = [
-  [null,       null,       0xB45309, 0xD97706, 0xD97706, 0xB45309, null,       null      ],
-  [null,       0xD97706,   0xFDE047, 0xFEF08A, 0xFEF08A, 0xFDE047, 0xD97706, null      ],
-  [0xB45309,   0xFDE047,   0x111827, 0xFDE047, 0xFDE047, 0x111827, 0xFDE047, 0xB45309  ],
-  [0xD97706,   0xFEF08A,   0x111827, 0xFEF08A, 0xFEF08A, 0x111827, 0xFEF08A, 0xD97706  ],
-  [0xD97706,   0xFDE047,   0xFDE047, 0xFDE047, 0xFDE047, 0xFDE047, 0xFDE047, 0xD97706  ],
-  [0xB45309,   0xFDE047,   0x111827, 0xFDE047, 0xFDE047, 0x111827, 0xFDE047, 0xB45309  ],
-  [null,       0xD97706,   0xFDE047, 0x111827, 0x111827, 0xFDE047, 0xD97706, null      ],
-  [null,       null,       0xB45309, 0xD97706, 0xD97706, 0xB45309, null,       null      ],
-];
 
 const smileSprite24Bit32x32 = [
   [null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null],
@@ -214,108 +135,60 @@ const smileSprite24Bit32x32 = [
   [null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null],
 ];
 
-const spaceInvaderSprite = 
-  [
-    [0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1],
-    [0, 1, 1, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 1, 1],
-    [0, 1, 1, 0, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1],
-    [0, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1],
-    [0, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 1],
-    [0, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 1],
-    [0, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 1],
-    [0, 1, 1, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 1, 1, 0],
-    [1, 0, 1, 1, 0, 1, 1, 0, 0, 1, 1, 0, 1, 1, 0, 1],
-    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-    [1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1],
-    [0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
-    [0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0],
-    [0, 0, 0, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 0, 0, 0],
-    [0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0],
-  ];
-
-let isDragging = false; 
+/*let isDragging = false; 
 let previousX = 0;
 let previousY = 0;
 let r = 0, g = 0, b = 0, a = 255; // Default color
 let degree = 0; // Default rotation degree
 let scale = 1; // Default scale factor
-let mouseX = 0, mouseY = 0; // Mouse position
+let mouseX = 0, mouseY = 0; // Mouse position*/
 
-canvas.addEventListener('click', (event) => {
-
-});
-
-canvas.addEventListener('mousedown', (event) => {
-  isDragging = true;
-  console.log('Mouse down', event.offsetX, event.offsetY);
-});
-
-canvas.addEventListener('mouseup', (event) => {
-  isDragging = false;
-  console.log('Mouse up', event.offsetX, event.offsetY);
-});
-
-canvas.addEventListener('mousemove', (event) => {
-
-  const { x, y } = toScaledMousePos(event.clientX, event.clientY);
-  mouseX = x;
-  mouseY = y;
-
-  if(isDragging) {
-    drawLine(previousX, previousY, x, y, r, g, b); // Draw a line from previous position to current position with the current color
-    //putPixel(x, y, r, g, b); // Draw a pixel at current position with the current color
-    ctx.putImageData(imageData, 0, 0);
-  }
-  previousX = x;
-  previousY = y;
-
-});
+let degree = 0;        // มุมหมุนเริ่มต้น
+let scaleX = 2;        // ขนาดสเกลเริ่มต้นแกน X
+let scaleY = 2;        // ขนาดสเกลเริ่มต้นแกน Y
+let spriteX = 100;     // พิกัดตำแหน่งเริ่มต้นแกน X (ตรงกลางจอ)
+let spriteY = 100;     // พิกัดตำแหน่งเริ่มต้นแกน Y (ตรงกลางจอ)
 
 window.addEventListener('keydown', (event) => {
-  console.log('Key down:', event.key);
-  if(event.key === '1') {
-    r = 255; g = 0; b = 0; // Change to red
-  }
-  else if(event.key === '2') {
-    r = 0; g = 255; b = 0; // Change to green
-  }
-  else if(event.key === '3') {
-    r = 0; g = 0; b = 255; // Change to blue
-  }
-
+  // 1. ควบคุมการขยับตำแหน่งด้วยปุ่มลูกศร (Arrow Keys)
   if (event.key === 'ArrowLeft') {
-    degree += 5; // Rotate left
+    spriteX -= 5;  // เดินซ้าย
   } else if (event.key === 'ArrowRight') {
-    degree -= 5; // Rotate right
+    spriteX += 5;  // เดินขวา
   } else if (event.key === 'ArrowUp') {
-    scale += 1; // Scale up
+    spriteY -= 5;  // เดินขึ้นข้างบน
   } else if (event.key === 'ArrowDown') {
-    scale -= 1; // Scale down
+    spriteY += 5;  // เดินลงข้างล่าง
+  } 
+  
+  // 2. ควบคุมการหมุน (Rotate) ด้วยปุ่ม Q และ E
+  else if (event.key === 'q' || event.key === 'Q') {
+    degree += 5;   // หมุนทวนเข็มนาฬิกา
+  } else if (event.key === 'e' || event.key === 'E') {
+    degree -= 5;   // หมุนตามเข็มนาฬิกา
+  }
+  
+  // 3. ควบคุมการยืด-หด แนวนอน (Scale X) ด้วยปุ่ม A และ D
+  else if (event.key === 'd' || event.key === 'D') {
+    scaleX += 0.2; // ขยายแนวนอน
+  } else if (event.key === 'a' || event.key === 'A') {
+    scaleX = Math.max(0.2, scaleX - 0.2); // หดแนวนอน
+  }
+  
+  // 4. ควบคุมการยืด-หด แนวตั้ง (Scale Y) ด้วยปุ่ม W และ S
+  else if (event.key === 'w' || event.key === 'W') {
+    scaleY += 0.2; // ขยายแนวตั้ง
+  } else if (event.key === 's' || event.key === 'S') {
+    scaleY = Math.max(0.2, scaleY - 0.2); // หดแนวตั้ง
   }
 });
-
-window.addEventListener('keyup', (event) => {
-  console.log('Key up:', event.key);
-});
-
-/*for(let alien = 0; alien < 3; alien++) {
-  for(let row = 0; row < 3; row++) {
-    drawSprite(spaceInvaderSprite, 20 + alien * 20, 100 + row * 20, 0, 255, 128); // Draw multiple space invaders in rows
-  }
-} */
-
-drawSprite(spaceInvaderSprite, 100, 100, 250, 125, 100);
-
-drawSpriteRotateScale(spaceInvaderSprite, 50, 50, 45, 5, 5, 125, 50, 150);
 
 function animate() {
-  drawRectFilled(0, 0, canvas.width, canvas.height, 255, 255, 255); 
+  drawRectFilled(0, 0, canvas.width, canvas.height, 255, 255, 255);
   drawLine(100, 100, canvas.width - 1, 100, 0, 0, 0);
   drawLine(100, 100, 100, 0, 0, 0, 0);
-  //degree += 0.5; // Increase rotation degree
-  //drawSprite24Bit(smileSprite24Bit, 50, 50);
-  drawSprite24Bit(smileSprite24Bit32x32, 200, 50);
-  drawSpriteRotateScale(spaceInvaderSprite, mouseX, mouseY, degree, scale, scale, 250, 125, 100);
+  
+  drawSprite24BitRotateScale(smileSprite24Bit32x32, spriteX, spriteY, degree, scaleX, scaleY);  
   ctx.putImageData(imageData, 0, 0);
   requestAnimationFrame(animate);
 }
