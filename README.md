@@ -40,10 +40,4 @@ Advisor<br>
 ## Interactive Computer Graphics
 This project demonstrates **24-bit Sprite Transformation**
 
-### How to interact:
-*  **Move (Translate):** Move your `Mouse` over the canvas to position the sprite.
-*  **Rotate:** Press `ArrowLeft` / `ArrowRight` keys to rotate the sprite.
-*  **Sale:** Press `ArrowUp` to scale up and `ArrowDown` to scale down.
-
-### Live Demo:
 <iframe src="700_Transformation.html" width="540px" height="540px" style="border: none; display: block; margin: 0 auto;"></iframe>
