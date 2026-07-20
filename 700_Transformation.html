@@ -184,6 +184,7 @@ window.addEventListener('keydown', (event) => {
 });
 
 function animate() {
+  drawRectFilled(0, 0, canvas.width, canvas.height, 255, 255, 255);
   drawSprite24BitRotateScale(smileSprite24Bit32x32, spriteX, spriteY, degree, scaleX, scaleY);  
   ctx.putImageData(imageData, 0, 0);
   requestAnimationFrame(animate);
