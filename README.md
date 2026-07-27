@@ -45,4 +45,4 @@ This project demonstrates **24-bit Sprite Transformation**
 ---
 
 This project demonstrates **Painting Program**
-<iframe src="Paint.html" width="700px" height="540px" style="border: none; display: block; margin: 0 auto;"></iframe>
+<iframe src="Paint.html" width="800px" height="540px" style="border: none; display: block; margin: 0 auto;"></iframe>
