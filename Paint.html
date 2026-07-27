@@ -1,0 +1,276 @@
+<html>
+    <head>
+        <title>PAINT</title>
+    </head>
+
+    <body style="margin: 0;">
+        <div style="display: flex; height: 100vh; background: #ffffff;">  
+            <!-- ฝั่งของเครื่องมือ -->
+            <div id="toolbar" style="width: 220px; flex-shrink: 0; background: #e2e1e1; padding: 10px; display: flex; flex-direction: column; gap: 8px; font-size: 20px; box-sizing: border-box;">
+                <button id="btnPencil" onclick="selectTool('pencil')">ดินสอ</button>
+                <button id="btnEraser" onclick="selectTool('eraser')">ยางลบ</button>
+                <button id="btnLine" onclick="selectTool('line')">เส้นตรง</button>
+                <button id="btnRect" onclick="selectTool('rect')">สี่เหลี่ยม</button>
+                <button id="btnEllipse" onclick="selectTool('ellipse')">วงกลม</button>
+
+                <!-- เลือกสี -->
+                <label id="colorLabel" style="font-size: 16px; margin-top: 10px;">สี</label>
+                <input type="color" id="colorPicker" value="#000000" onchange="changeColor(this.value)" style="width: 100%; height: 40px;">
+
+                <!-- ปรับความหนาเส้น -->
+                <label style="font-size: 16px; margin-top: 10px;">ความหนา: <span id="thicknessLabel">3</span></label>
+                <input type="range" id="thicknessSlider" min="1" max="20" value="3" oninput="changeThickness(this.value)" style="width: 100%;">
+            </div>
+
+            <!-- ฝั่งของ canvas -->
+            <div style="flex: 1; display: flex; justify-content: center; align-items: center; background: #f4f4f4; padding: 60px; box-sizing: border-box;">
+                <canvas id="canvas" width="300" height="200"
+                    style="width: 100%; height: 100%; border:1px solid #2d2d2e; background: #ffffff ; image-rendering: pixelated;">
+                </canvas>
+            </div>
+        </div>
+    </body>
+
+    <script>
+        // ---------- ตั้งค่าแยกของแต่ละเครื่องมือ ----------
+        const toolSettings = {
+            pencil:  { color: '#000000', thickness: 1 },
+            eraser:  { color: '#ffffff', thickness: 1 }, 
+            line:    { color: '#000000', thickness: 1 },
+            rect:    { color: '#000000', thickness: 1 },
+            ellipse: { color: '#000000', thickness: 1 }
+        };
+
+        let currentTool = 'pencil'; // เริ่มมาเป็นดินสอ
+
+        // ---------- ส่วนเลือกเครื่องมือ ----------
+        function selectTool(tool) {
+            currentTool = tool;
+
+            document.getElementById('btnPencil').style.background = '';
+            document.getElementById('btnEraser').style.background = '';
+            document.getElementById('btnLine').style.background = '';
+            document.getElementById('btnRect').style.background = '';
+            document.getElementById('btnEllipse').style.background = '';
+
+            if (tool === 'pencil') {
+                document.getElementById('btnPencil').style.background = '#a0a0a0';
+            } else if (tool === 'eraser') {
+                document.getElementById('btnEraser').style.background = '#a0a0a0';
+            } else if (tool === 'line') {
+                document.getElementById('btnLine').style.background = '#a0a0a0';
+            } else if (tool === 'rect') {
+                document.getElementById('btnRect').style.background = '#a0a0a0';
+            } else if (tool === 'ellipse') {
+                document.getElementById('btnEllipse').style.background = '#a0a0a0';
+            }
+
+            // ดึงค่าสีและความหนาที่เคยตั้งไว้
+            const settings = toolSettings[tool];
+            document.getElementById('colorPicker').value = settings.color;
+            document.getElementById('thicknessSlider').value = settings.thickness;
+            document.getElementById('thicknessLabel').textContent = settings.thickness;
+
+            // ปิดการใช้งาน color picker เมื่อเลือกยางลบ
+            const colorPicker = document.getElementById('colorPicker');
+            const colorLabel = document.getElementById('colorLabel');
+            if (tool === 'eraser') {
+                colorPicker.disabled = true;
+                colorPicker.style.opacity = '0.4';
+                colorLabel.textContent = 'สี';
+            } else {
+                colorPicker.disabled = false;
+                colorPicker.style.opacity = '1';
+                colorLabel.textContent = 'สี';
+            }
+        }
+
+        // ---------- ตั้งค่าสีและความหนา ----------
+        function changeColor(hex) {
+            if (currentTool === 'eraser') return;
+            toolSettings[currentTool].color = hex;
+        }
+
+        function changeThickness(value) {
+            toolSettings[currentTool].thickness = parseInt(value);
+            document.getElementById('thicknessLabel').textContent = value;
+        }
+
+        // ---------- ฟังก์ชันแปลง hex => r, g, b ----------
+        function hexToRgb(hex) {
+            const r = parseInt(hex.substr(1, 2), 16);
+            const g = parseInt(hex.substr(3, 2), 16);
+            const b = parseInt(hex.substr(5, 2), 16);
+            return { r, g, b };
+        }
+
+        // ---------- ส่วนวาดภาพ ----------
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const imageData = ctx.createImageData(canvas.width, canvas.height);
+        const pixels = imageData.data;
+
+        // เคลียร์พื้นเป็นสีขาวตอนเริ่มต้น
+        for (let i = 0; i < pixels.length; i += 4) {
+            pixels[i] = 255;
+            pixels[i + 1] = 255;
+            pixels[i + 2] = 255;
+            pixels[i + 3] = 255;
+        }
+        ctx.putImageData(imageData, 0, 0);
+
+        let savedPixels = new Uint8ClampedArray(pixels); // Unit8ClampedArray = อาเรย์ที่เก็บค่าสีให้อยู่ในช่วง 0-255
+
+        function putPixel(x, y, red, green, blue, a = 255) {
+            if (x < 0 || x >= canvas.width || y < 0 || y >= canvas.height) return;
+            const idx = (y * canvas.width + x) * 4;
+            pixels[idx] = red;
+            pixels[idx + 1] = green;
+            pixels[idx + 2] = blue;
+            pixels[idx + 3] = a;
+        }
+
+        function putThickPixel(x, y, red, green, blue, size) {
+            const radius = Math.floor(size / 2);
+            for (let dy = -radius; dy <= radius; dy++) {
+                for (let dx = -radius; dx <= radius; dx++) {
+                    if (dx * dx + dy * dy <= radius * radius) {
+                        putPixel(x + dx, y + dy, red, green, blue);
+                    }
+                }
+            }
+        }
+
+        function drawLine(x1, y1, x2, y2, red, green, blue, size) {
+            const dx = Math.abs(x2 - x1);
+            const dy = Math.abs(y2 - y1);
+
+            if (dx === 0 && dy === 0) {
+                putThickPixel(x1, y1, red, green, blue, size);
+                return;
+            }
+
+            if (dx > dy) {
+                const m = (y2 - y1) / (x2 - x1);
+                const c = y1 - m * x1;
+                for (let x = Math.min(x1, x2); x <= Math.max(x1, x2); x++) {
+                    const y = Math.round(m * x + c);
+                    putThickPixel(x, y, red, green, blue, size);
+                }
+            } else {
+                const m = (x2 - x1) / (y2 - y1);
+                const c = x1 - m * y1;
+                for (let y = Math.min(y1, y2); y <= Math.max(y1, y2); y++) {
+                    const x = Math.round(m * y + c);
+                    putThickPixel(x, y, red, green, blue, size);
+                }
+            }
+        }
+
+        function drawRect(x1, y1, x2, y2, red, green, blue, size) {
+            drawLine(x1, y1, x2, y1, red, green, blue, size); // บน
+            drawLine(x2, y1, x2, y2, red, green, blue, size); // ขวา
+            drawLine(x2, y2, x1, y2, red, green, blue, size); // ล่าง
+            drawLine(x1, y2, x1, y1, red, green, blue, size); // ซ้าย
+        }
+
+        function drawEllipse(x1, y1, x2, y2, red, green, blue, size) {
+            const cx = (x1 + x2) / 2;
+            const cy = (y1 + y2) / 2;
+            const rx = Math.abs(x2 - x1) / 2;
+            const ry = Math.abs(y2 - y1) / 2;
+
+            // วาดเส้นขอบวงรีตามมุม (0-360 องศา) แทนการไล่พิกเซลทีละจุดในกรอบ
+            const steps = 360;
+            let prevX = null, prevY = null;
+            for (let i = 0; i <= steps; i++) {
+                const angle = (i / steps) * Math.PI * 2;
+                const x = Math.round(cx + rx * Math.cos(angle));
+                const y = Math.round(cy + ry * Math.sin(angle));
+                if (prevX !== null) {
+                    drawLine(prevX, prevY, x, y, red, green, blue, size);
+                }
+                prevX = x;
+                prevY = y;
+            }
+        }
+
+        function toScaledMousePos(clientX, clientY) {
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            const x = Math.floor((clientX - rect.left) * scaleX);
+            const y = Math.floor((clientY - rect.top) * scaleY);
+            return { x, y };
+        }
+
+        function restoreSavedPixels() {
+            pixels.set(savedPixels);
+        }
+
+        function commitPixels() {
+            savedPixels = new Uint8ClampedArray(pixels);
+        }
+
+        let isDragging = false;
+        let startX = 0, startY = 0;
+        let previousX = 0, previousY = 0;
+
+        canvas.addEventListener('mousedown', (event) => {
+            isDragging = true;
+            const { x, y } = toScaledMousePos(event.clientX, event.clientY);
+            startX = x;
+            startY = y;
+            previousX = x;
+            previousY = y;
+
+            const settings = toolSettings[currentTool];
+            const { r, g, b } = hexToRgb(currentTool === 'eraser' ? '#ffffff' : settings.color);
+
+            if (currentTool === 'pencil' || currentTool === 'eraser') {
+                putThickPixel(x, y, r, g, b, settings.thickness);
+                ctx.putImageData(imageData, 0, 0);
+                commitPixels();
+            }
+        });
+
+        canvas.addEventListener('mousemove', (event) => {
+            const { x, y } = toScaledMousePos(event.clientX, event.clientY);
+
+            if (isDragging) {
+                const settings = toolSettings[currentTool];
+                const { r, g, b } = hexToRgb(currentTool === 'eraser' ? '#ffffff' : settings.color);
+
+                if (currentTool === 'pencil' || currentTool === 'eraser') {
+                    drawLine(previousX, previousY, x, y, r, g, b, settings.thickness);
+                    ctx.putImageData(imageData, 0, 0);
+                    commitPixels();
+                } else if (currentTool === 'line') {
+                    restoreSavedPixels();
+                    drawLine(startX, startY, x, y, r, g, b, settings.thickness);
+                    ctx.putImageData(imageData, 0, 0);
+                } else if (currentTool === 'rect') {
+                    restoreSavedPixels();
+                    drawRect(startX, startY, x, y, r, g, b, settings.thickness);
+                    ctx.putImageData(imageData, 0, 0);
+                } else if (currentTool === 'ellipse') {
+                    restoreSavedPixels();
+                    drawEllipse(startX, startY, x, y, r, g, b, settings.thickness);
+                    ctx.putImageData(imageData, 0, 0);
+                }
+            }
+
+            previousX = x;
+            previousY = y;
+        });
+
+        canvas.addEventListener('mouseup', () => {
+            if (isDragging && ['line', 'rect', 'ellipse'].includes(currentTool)) {
+                commitPixels();
+            }
+            isDragging = false;
+        });
+
+        selectTool('pencil');
+    </script>
+</html>
