@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Materials</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- core three.js -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/OBJLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/fflate@0.8.2/umd/index.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/EXRLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/EXRLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/lil-gui@0.19"></script> <!-- GUI สำหรับปรับตำแหน่งแสง -->
+
+    <script>
+
+        const renderer = new THREE.WebGLRenderer();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true; // Shadow
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        document.body.appendChild(renderer.domElement);
+
+        const scene = new THREE.Scene();
+
+        
+        const camera = new THREE.PerspectiveCamera(
+            75,
+            window.innerWidth / window.innerHeight,
+            0.1,
+            1000
+        );
+        camera.position.set(0, 2, 5);
+        camera.lookAt(0, 0, 0);
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+
+        const abmientLight = new THREE.AmbientLight(0x404040, 1.5); // soft white light
+        scene.add(abmientLight);
+
+        /*const directionalLight = new THREE.DirectionalLight(0xffffff, 1.2);
+        directionalLight.position.set(5, 8, 5);
+        directionalLight.castShadow = true;
+        scene.add(directionalLight);*/
+
+        const pointLight = new THREE.PointLight(0xffffff, 200, 0, 2); // color, intensity, distance(0=ไม่จำกัด), decay
+        pointLight.position.set(5, 8, 5);
+        pointLight.castShadow = true;
+        scene.add(pointLight);
+
+        const lightState = {
+            azimuth: Math.round(THREE.MathUtils.radToDeg(Math.atan2(pointLight.position.x, pointLight.position.z))), // มุมรอบแกน Y
+            elevation: Math.round(THREE.MathUtils.radToDeg(Math.asin(pointLight.position.y / pointLight.position.length()))), // มุมเงยจากพื้น
+            distance: Math.round(pointLight.position.length()),
+            intensity: Math.round(pointLight.intensity),
+            mouseControlsLight: false 
+        };
+
+        function updateLightPosition() {
+            const r = lightState.distance;
+            const az = THREE.MathUtils.degToRad(lightState.azimuth);
+            const el = THREE.MathUtils.degToRad(lightState.elevation);
+            pointLight.position.set(
+                r * Math.cos(el) * Math.sin(az),
+                r * Math.sin(el),
+                r * Math.cos(el) * Math.cos(az)
+            );
+            pointLight.intensity = lightState.intensity / 100;
+        }
+        updateLightPosition();
+
+        // GUI ปรับตำแหน่งแสง =====
+        const gui = new lil.GUI({ title: 'Light Controls' });
+        const lightFolder = gui.addFolder('ตำแหน่งแหล่งกำเนิดแสง');
+        lightFolder.add(lightState, 'azimuth', -180, 180, 1).name('มุมรอบ (องศา)').onChange(updateLightPosition);
+        lightFolder.add(lightState, 'elevation', 5, 90, 1).name('มุมเงย (องศา)').onChange(updateLightPosition);
+        lightFolder.add(lightState, 'distance', 2, 20, 1).name('ระยะห่าง').onChange(updateLightPosition);
+        lightFolder.add(lightState, 'intensity', 0, 400, 1).name('ความสว่าง (%)').onChange(updateLightPosition);
+        lightFolder.add(lightState, 'mouseControlsLight').name('ลากเมาส์เพื่อเปลี่ยนทิศแสง');
+        lightFolder.open();
+        
+        // EventListener สำหรับใช้เมาส์ปรับตำปหน่งแสง
+        let isDragging = false;
+        let previousX = 0, previousY = 0;
+        renderer.domElement.addEventListener('pointerdown', (e) => {
+            if (!lightState.mouseControlsLight) return;
+            isDragging = true;
+            previousX = e.clientX;
+            previousY = e.clientY;
+            controls.enabled = false; // ปิดไม่ให้กล้องหมุนพร้อมกับแสง
+        });
+        window.addEventListener('pointerup', () => {
+            isDragging = false;
+            controls.enabled = true;
+        });
+        window.addEventListener('pointermove', (e) => {
+            if (!isDragging || !lightState.mouseControlsLight) return;
+            const dx = e.clientX - previousX;
+            const dy = e.clientY - previousY;
+            previousX = e.clientX;
+            previousY = e.clientY;
+            lightState.azimuth -= dx * 0.5;
+            if (lightState.azimuth > 180) lightState.azimuth -= 360;
+            if (lightState.azimuth < -180) lightState.azimuth += 360;
+            lightState.elevation = Math.min(90, Math.max(5, lightState.elevation + dy * 0.5));
+            updateLightPosition();
+            lightFolder.controllers.forEach(c => c.updateDisplay());
+        });
+
+        // พื้นหลัง
+        const exrSkyboxUrl = 'https://dl.polyhaven.org/file/ph-assets/HDRIs/exr/1k/ludwikowice_farmland_1k.exr';
+        const pmremGenerator = new THREE.PMREMGenerator(renderer);
+        pmremGenerator.compileEquirectangularShader();
+
+        new THREE.EXRLoader()
+            .setDataType(THREE.UnsignedByteType)
+            .load(exrSkyboxUrl, (texture) => {
+                const skybox = pmremGenerator.fromEquirectangular(texture).texture;
+                scene.background = skybox;
+                scene.environment = skybox;
+
+                texture.dispose();
+                pmremGenerator.dispose();
+            }, undefined, (error) => {
+                console.error('Unable to load EXR skybox:', error);
+            });
+
+
+        //ใส่พื้น
+        const texFloor = new THREE.TextureLoader().load('https://sibsansuk.github.io/mossy_cobblestone_diff_1k.jpg', t => {
+        });
+        const matFloor = new THREE.MeshStandardMaterial({
+            map: texFloor,
+            color: 0x888888, 
+            roughness: 0.8,    // เพิ่ม Roughness ไม่ให้พื้นสะท้อนแสง
+            metalness: 0.1,
+            side: THREE.DoubleSide
+        });
+        const planeGeometry = new THREE.PlaneGeometry(10, 10);
+        const plane = new THREE.Mesh(planeGeometry, matFloor);
+        plane.rotation.x = -Math.PI / 2; 
+        plane.receiveShadow = true;
+        
+        scene.add(plane);
+
+
+        
+        let knightModel = null;
+
+        //load glb และใช้ pbr material
+        const loader = new THREE.GLTFLoader();
+        loader.load('https://raw.githubusercontent.com/SPRk02/SPRk02.github.io/main/knight.glb', (gltf) => {
+            knightModel = gltf.scene;
+            
+            knightModel.traverse((child) => {
+                if (child.isMesh) {
+                    child.castShadow = true;
+                    child.receiveShadow = true;
+                }
+            });
+            
+            knightModel.position.set(0, 0, 0);
+            scene.add(knightModel);
+        }, undefined, (error) => {
+            console.error('Unable to load knight.glb:', error);
+        });
+
+
+        function animate(t) {
+            if (knightModel) {
+                knightModel.rotation.y = Math.sin(t * 0.001); 
+            }
+            
+            controls.update();
+            renderer.render(scene, camera);
+            requestAnimationFrame(animate);
+        }
+        animate(0);
+        window.addEventListener('keydown', (event) => {
+
+        });
+
+    </script>
+</body>
+
+</html>
