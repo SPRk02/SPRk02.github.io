@@ -20,7 +20,6 @@
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/EXRLoader.js"></script>
 
     <script>
-        // 1. ตั้งค่า Renderer และระบบ Shadow Map
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -78,10 +77,14 @@
 
 
         const uLightDir = { value: directionalLight.position.clone().normalize() };
+        const uTime = { value: 0.0 };  
         const whiteTexture = new THREE.DataTexture(
             new Uint8Array([255, 255, 255, 255]), 1, 1, THREE.RGBAFormat
         );
         whiteTexture.needsUpdate = true;
+
+        const MOVE_AMP = 0.1;    
+        const MOVE_SPEED = 2.0;  
 
         const vertexShader = `
             varying vec2 vUv;
@@ -94,47 +97,112 @@
             }
         `;
 
+        const moveVertexShader = `
+            uniform float uTime;
+            uniform float uAmp;
+            uniform float uSpeed;
+
+            varying vec2 vUv;
+            varying vec3 vNormal;
+
+            void main() {
+                vUv = uv;
+                vNormal = normalize(mat3(modelMatrix) * normal); // world space normal
+
+                vec3 pos = position;
+                pos.y += sin(uTime * uSpeed) * uAmp;  
+
+                gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
+            }
+        `;
+
         const fragmentShader = `
             precision mediump float;
 
             uniform sampler2D uTexture;
             uniform vec3 uLightDir;
             uniform vec3 uBaseColor;
+            uniform vec3 uShadowColor;   
+            uniform vec3 uLightColor;    
+            uniform float uLevels;       
             varying vec2 vUv;
             varying vec3 vNormal;
 
             void main() {
                 vec3 N = normalize(vNormal);
+                if (!gl_FrontFacing) N = -N;        
                 vec3 L = normalize(uLightDir);
 
-                float diffuse = max(dot(N, L), 0.0);
-                float levels = 3.0;
-                diffuse = floor(diffuse * levels) / levels;
-                diffuse += 0.5;
+                float ndl = dot(N, L) * 0.5 + 0.5;
+                float band = min(floor(ndl * uLevels), uLevels - 1.0) / (uLevels - 1.0);
+
+                vec3 shade = mix(uShadowColor, uLightColor, band);
 
                 vec3 base = texture2D(uTexture, vUv).rgb * uBaseColor;
-                vec3 finalColor = base * diffuse;
-
-                gl_FragColor = vec4(finalColor, 1.0);
+                gl_FragColor = vec4(base * shade, 1.0);
             }
         `;
 
-        function makeCelMaterial(originalMaterial) {
+        function makeCelMaterial(originalMaterial, animated) {
             const map = originalMaterial && originalMaterial.map ? originalMaterial.map : whiteTexture;
+
             const baseColor = originalMaterial && originalMaterial.color
-                ? originalMaterial.color
+                ? originalMaterial.color.clone().convertLinearToSRGB()
                 : new THREE.Color(0xffffff);
 
             return new THREE.ShaderMaterial({
-                vertexShader: vertexShader,
+                vertexShader: animated ? moveVertexShader : vertexShader,
                 fragmentShader: fragmentShader,
                 uniforms: {
                     uLightDir: uLightDir,
+                    uTime: uTime,
+                    uAmp: { value: MOVE_AMP },
+                    uSpeed: { value: MOVE_SPEED },
                     uTexture: { value: map },
-                    uBaseColor: { value: baseColor }
+                    uBaseColor: { value: baseColor },
+                    uShadowColor: { value: new THREE.Color(0.55, 0.50, 0.70) }, 
+                    uLightColor: { value: new THREE.Color(1.15, 1.10, 1.0) },   
+                    uLevels: { value: 4.0 }
                 },
                 side: THREE.DoubleSide
             });
+        }
+
+        function makeMovingOriginalMaterial(originalMaterial) {
+            const mat = originalMaterial.clone();  
+            mat.onBeforeCompile = (shader) => {
+                shader.uniforms.uTime = uTime;
+                shader.uniforms.uAmp = { value: MOVE_AMP };
+                shader.uniforms.uSpeed = { value: MOVE_SPEED };
+
+                shader.vertexShader = shader.vertexShader
+                    .replace('#include <common>', `
+                        #include <common>
+                        uniform float uTime;
+                        uniform float uAmp;
+                        uniform float uSpeed;
+                    `)
+                    .replace('#include <begin_vertex>', `
+                        #include <begin_vertex>
+                        transformed.y += sin(uTime * uSpeed) * uAmp;
+                    `);
+            };
+            mat.needsUpdate = true;
+            return mat;
+        }
+
+        const CEL_TARGETS = ['aboutb', 'skillsb', 'roof'];
+
+        const MOVE_CEL_TARGETS = ['line'];
+
+        const MOVE_ORIGINAL_TARGETS = ['light'];
+
+        function hasNameIn(obj, list) {
+            while (obj) {
+                if (list.includes((obj.name || '').toLowerCase())) return true;
+                obj = obj.parent;
+            }
+            return false;
         }
 
         // ชื่อสำหรับกดวัตถุหนึ่งไปหาอีกวัตถุ
@@ -269,13 +337,21 @@
                     child.castShadow = true;
                     child.receiveShadow = true;
 
-                    child.material = makeCelMaterial(child.material);
+                    if (hasNameIn(child, MOVE_ORIGINAL_TARGETS)) {
+                        child.material = makeMovingOriginalMaterial(child.material);
+                        child.castShadow = false;   // เงาจาก depth material ไม่รู้จักการขยับ
+                    } else if (hasNameIn(child, MOVE_CEL_TARGETS)) {
+                        child.material = makeCelMaterial(child.material, true);
+                        child.castShadow = false;
+                    } else if (hasNameIn(child, CEL_TARGETS)) {
+                        child.material = makeCelMaterial(child.material, false);
 
-                    child.customDepthMaterial = new THREE.MeshDepthMaterial({
-                        depthPacking: THREE.RGBADepthPacking,
-                        map: child.material.uniforms.uTexture.value,
-                        alphaTest: 0.5
-                    });
+                        child.customDepthMaterial = new THREE.MeshDepthMaterial({
+                            depthPacking: THREE.RGBADepthPacking,
+                            map: child.material.uniforms.uTexture.value,
+                            alphaTest: 0.5
+                        });
+                    }
 
                     pickables.push(child);
                 }
@@ -288,6 +364,8 @@
                 const nm = (n.name || '').toLowerCase();
                 if (TARGET_MAP[nm]) console.log('Found clickable node:', n.name);
                 if (Object.values(TARGET_MAP).includes(nm)) console.log('Found destination node:', n.name);
+                if (CEL_TARGETS.includes(nm)) console.log('Cel shading applied to:', n.name);
+                if (MOVE_CEL_TARGETS.includes(nm) || MOVE_ORIGINAL_TARGETS.includes(nm)) console.log('Y-move applied to:', n.name);
             });
         });
 
@@ -298,16 +376,17 @@
             renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         });
 
-        function animate() {
+        function animate(time) {
             updateFly();
             controls.update();
 
+            uTime.value = time * 0.001;
             uLightDir.value.copy(directionalLight.position).normalize();
 
             renderer.render(scene, camera);
             requestAnimationFrame(animate);
         }
-        animate();
+        requestAnimationFrame(animate);
     </script>
 </body>
 
